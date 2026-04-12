@@ -29,6 +29,24 @@ export default function Home() {
           >
             Задать вопрос ветеринару
           </Link>
+          <Link
+  href="/login"
+  className="inline-flex w-full items-center justify-center rounded-full border border-zinc-300 bg-white px-6 py-3.5 text-center text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900 sm:w-auto sm:min-w-[200px] sm:px-8"
+>
+  Войти
+</Link>
+<Link
+  href="/account"
+  className="inline-flex w-full items-center justify-center rounded-full border border-zinc-300 bg-white px-6 py-3.5 text-center text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900 dark:focus-visible:outline-zinc-500 sm:w-auto sm:min-w-[200px] sm:px-8"
+>
+  Мой аккаунт
+</Link>
+<Link
+  href="/pricing"
+  className="inline-flex w-full items-center justify-center rounded-full border border-zinc-300 bg-white px-6 py-3.5 text-center text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900 dark:focus-visible:outline-zinc-500 sm:w-auto sm:min-w-[200px] sm:px-8"
+>
+  Тарифы
+</Link>
         </nav>
       </main>
     </div>

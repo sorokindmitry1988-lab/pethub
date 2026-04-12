@@ -1,5 +1,6 @@
 import { SubscribeButton } from "@/components/SubscribeButton";
 import type { Pet } from "@/lib/types";
+import Image from "next/image";
 
 type PetCardProps = {
   pet: Pet;
@@ -13,7 +14,7 @@ export function PetCard({ pet }: PetCardProps) {
     <article className="flex w-full max-w-md flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950 sm:max-w-none">
       <div className="relative aspect-[4/3] w-full shrink-0 bg-zinc-100 dark:bg-zinc-900">
         {pet.photo_url ? (
-          <img
+          <Image
             src={pet.photo_url}
             alt={`Фото питомца ${pet.name}`}
             className="h-full w-full object-cover"

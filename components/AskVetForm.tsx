@@ -6,6 +6,7 @@ import {
   useState,
   type FormEvent,
 } from "react";
+import Link from "next/link";
 
 type PetType = "собака" | "кошка" | "другое";
 
@@ -30,6 +31,8 @@ type VetQuestion = {
 };
 
 const FREE_QUESTION_LIMIT = 2;
+const AUTH_REQUIRED_MESSAGE =
+  "Войдите, чтобы отправлять и просматривать свои вопросы";
 
 const usageErrorBannerClass =
   "mb-6 rounded-xl border-2 border-amber-600/70 bg-amber-50 px-4 py-4 text-amber-950 shadow-sm dark:border-amber-500/60 dark:bg-amber-950/40 dark:text-amber-100 sm:mb-8 sm:px-5 sm:py-4";
@@ -114,16 +117,26 @@ export default function AskVetForm() {
   const [usageLoading, setUsageLoading] = useState(true);
   const [usageError, setUsageError] = useState<string | null>(null);
   const [usage, setUsage] = useState<UsagePayload | null>(null);
+  const [usageUnauthorized, setUsageUnauthorized] = useState(false);
 
   const [questions, setQuestions] = useState<VetQuestion[]>([]);
   const [questionsLoading, setQuestionsLoading] = useState(true);
   const [questionsError, setQuestionsError] = useState<string | null>(null);
+  const [questionsUnauthorized, setQuestionsUnauthorized] = useState(false);
+  const [submitUnauthorized, setSubmitUnauthorized] = useState(false);
 
   const fetchQuestions = useCallback(async () => {
     setQuestionsLoading(true);
     setQuestionsError(null);
+    setQuestionsUnauthorized(false);
     try {
       const res = await fetch("/api/questions");
+      if (res.status === 401) {
+        setQuestions([]);
+        setQuestionsUnauthorized(true);
+        setQuestionsError(AUTH_REQUIRED_MESSAGE);
+        return;
+      }
       let data: unknown;
       try {
         data = await res.json();
@@ -167,8 +180,17 @@ export default function AskVetForm() {
     async function fetchUsage() {
       setUsageLoading(true);
       setUsageError(null);
+      setUsageUnauthorized(false);
       try {
         const res = await fetch("/api/usage");
+        if (res.status === 401) {
+          if (!cancelled) {
+            setUsage(null);
+            setUsageUnauthorized(true);
+            setUsageError(AUTH_REQUIRED_MESSAGE);
+          }
+          return;
+        }
         let data: unknown;
         try {
           data = await res.json();
@@ -244,6 +266,7 @@ export default function AskVetForm() {
 
     setSuccessMessage(null);
     setErrorMessage(null);
+    setSubmitUnauthorized(false);
     setLoading(true);
     try {
       const res = await fetch("/api/questions", {
@@ -267,6 +290,12 @@ export default function AskVetForm() {
         };
       } catch {
         // тело ответа не JSON
+      }
+
+      if (res.status === 401) {
+        setSubmitUnauthorized(true);
+        setErrorMessage(AUTH_REQUIRED_MESSAGE);
+        return;
       }
 
       if (res.ok && data.success === true) {
@@ -309,6 +338,18 @@ export default function AskVetForm() {
         >
           <p className="text-sm font-medium leading-relaxed sm:text-base">
             {usageError}
+            {usageUnauthorized ? (
+              <>
+                {" "}
+                <Link
+                  href="/login"
+                  className="underline decoration-current underline-offset-2"
+                >
+                  Перейти ко входу
+                </Link>
+                .
+              </>
+            ) : null}
           </p>
         </div>
       ) : null}
@@ -345,6 +386,18 @@ export default function AskVetForm() {
         >
           <p className="text-sm font-medium leading-relaxed sm:text-base">
             {errorMessage}
+            {submitUnauthorized ? (
+              <>
+                {" "}
+                <Link
+                  href="/login"
+                  className="underline decoration-current underline-offset-2"
+                >
+                  Перейти ко входу
+                </Link>
+                .
+              </>
+            ) : null}
           </p>
         </div>
       ) : null}
@@ -464,7 +517,21 @@ export default function AskVetForm() {
             role="alert"
             aria-live="polite"
           >
-            <p className="font-medium leading-relaxed">{questionsError}</p>
+            <p className="font-medium leading-relaxed">
+              {questionsError}
+              {questionsUnauthorized ? (
+                <>
+                  {" "}
+                  <Link
+                    href="/login"
+                    className="underline decoration-current underline-offset-2"
+                  >
+                    Перейти ко входу
+                  </Link>
+                  .
+                </>
+              ) : null}
+            </p>
           </div>
         ) : null}
 
