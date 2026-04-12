@@ -65,3 +65,5 @@ for update
 to authenticated
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
+alter table subscriptions
+add constraint subscriptions_user_id_key unique (user_id);

@@ -1,6 +1,6 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 function requireEnv(
   name: "STRIPE_SECRET_KEY" | "STRIPE_WEBHOOK_SECRET"
@@ -46,30 +46,21 @@ export async function POST(request: Request) {
         session.metadata?.user_id ?? session.client_reference_id ?? null;
 
       if (userId) {
-        const supabase = createAdminClient();
+        const supabase = await createClient();
 
         const stripeCustomerId =
           typeof session.customer === "string" ? session.customer : null;
 
-        const { error: subscriptionError } = await supabase
-          .from("subscriptions")
-          .upsert(
-            {
-              user_id: userId,
-              stripe_session_id: session.id,
-              stripe_customer_id: stripeCustomerId,
-              status: "active",
-              plan_code: "premium",
-            },
-            { onConflict: "user_id" }
-          );
-
-        if (subscriptionError) {
-          return NextResponse.json(
-            { error: "Не удалось обработать Stripe webhook" },
-            { status: 500 }
-          );
-        }
+        await supabase.from("subscriptions").upsert(
+          {
+            user_id: userId,
+            stripe_session_id: session.id,
+            stripe_customer_id: stripeCustomerId,
+            status: "active",
+            plan_code: "premium",
+          },
+          { onConflict: "user_id" }
+        );
 
         const { data: existingUsage } = await supabase
           .from("usage_limits")
@@ -79,35 +70,19 @@ export async function POST(request: Request) {
           .maybeSingle();
 
         if (existingUsage?.id) {
-          const { error: usageUpdateError } = await supabase
+          await supabase
             .from("usage_limits")
             .update({
               free_limit: 999999,
             })
             .eq("id", existingUsage.id);
-
-          if (usageUpdateError) {
-            return NextResponse.json(
-              { error: "Не удалось обработать Stripe webhook" },
-              { status: 500 }
-            );
-          }
         } else {
-          const { error: usageInsertError } = await supabase
-            .from("usage_limits")
-            .insert({
-              user_id: userId,
-              feature_key: "vet_questions",
-              free_limit: 999999,
-              used_count: 0,
-            });
-
-          if (usageInsertError) {
-            return NextResponse.json(
-              { error: "Не удалось обработать Stripe webhook" },
-              { status: 500 }
-            );
-          }
+          await supabase.from("usage_limits").insert({
+            user_id: userId,
+            feature_key: "vet_questions",
+            free_limit: 999999,
+            used_count: 0,
+          });
         }
       }
     }
