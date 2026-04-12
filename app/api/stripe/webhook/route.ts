@@ -1,10 +1,10 @@
 import Stripe from "stripe";
+import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-const FEATURE_KEY = "vet_questions";
-const PREMIUM_FREE_LIMIT = 999999;
-
-function requireEnv(name: "STRIPE_SECRET_KEY" | "STRIPE_WEBHOOK_SECRET"): string {
+function requireEnv(
+  name: "STRIPE_SECRET_KEY" | "STRIPE_WEBHOOK_SECRET"
+): string {
   const raw = process.env[name];
   const value = typeof raw === "string" ? raw.trim() : "";
   if (!value) {
@@ -13,128 +13,85 @@ function requireEnv(name: "STRIPE_SECRET_KEY" | "STRIPE_WEBHOOK_SECRET"): string
   return value;
 }
 
-function stripeCustomerId(
-  customer: Stripe.Checkout.Session["customer"]
-): string | null {
-  if (customer == null) {
-    return null;
-  }
-  if (typeof customer === "string") {
-    return customer;
-  }
-  if (typeof customer === "object" && "id" in customer && typeof customer.id === "string") {
-    return customer.id;
-  }
-  return null;
-}
-
 export async function POST(request: Request) {
-  const rawBody = await request.text();
-  const signature = request.headers.get("stripe-signature");
-
-  let event: Stripe.Event;
-
   try {
     const stripe = new Stripe(requireEnv("STRIPE_SECRET_KEY"));
+    const webhookSecret = requireEnv("STRIPE_WEBHOOK_SECRET");
+
+    const body = await request.text();
+    const signature = request.headers.get("stripe-signature");
+
     if (!signature) {
-      throw new Error("Missing stripe-signature header");
+      return NextResponse.json(
+        { error: "Отсутствует подпись webhook" },
+        { status: 400 }
+      );
     }
-    event = stripe.webhooks.constructEvent(
-      rawBody,
-      signature,
-      requireEnv("STRIPE_WEBHOOK_SECRET")
-    );
-  } catch {
-    return Response.json({ error: "Невалидная подпись webhook" }, { status: 400 });
-  }
 
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object as Stripe.Checkout.Session;
-    const userId =
-      (session.metadata?.user_id?.trim() ?? "") ||
-      (session.client_reference_id?.trim() ?? "") ||
-      null;
+    let event: Stripe.Event;
 
-    if (userId) {
-      const supabase = await createClient();
-      const customerId = stripeCustomerId(session.customer);
+    try {
+      event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    } catch {
+      return NextResponse.json(
+        { error: "Невалидная подпись webhook" },
+        { status: 400 }
+      );
+    }
 
-      const { data: existingSub, error: subSelectError } = await supabase
-        .from("subscriptions")
-        .select("id")
-        .eq("user_id", userId)
-        .maybeSingle();
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object as Stripe.Checkout.Session;
 
-      if (subSelectError) {
-        console.error("Supabase subscriptions select error:", subSelectError);
-        return Response.json({ error: "Не удалось обработать подписку" }, { status: 500 });
-      }
+      const userId =
+        session.metadata?.user_id ?? session.client_reference_id ?? null;
 
-      const subscriptionRow = {
-        user_id: userId,
-        stripe_session_id: session.id,
-        stripe_customer_id: customerId,
-        status: "active",
-        plan_code: "premium",
-      };
+      if (userId) {
+        const supabase = await createClient();
 
-      if (existingSub) {
-        const { error: subUpdateError } = await supabase
-          .from("subscriptions")
-          .update(subscriptionRow)
-          .eq("id", existingSub.id);
+        const stripeCustomerId =
+          typeof session.customer === "string" ? session.customer : null;
 
-        if (subUpdateError) {
-          console.error("Supabase subscriptions update error:", subUpdateError);
-          return Response.json({ error: "Не удалось обновить подписку" }, { status: 500 });
-        }
-      } else {
-        const { error: subInsertError } = await supabase.from("subscriptions").insert(subscriptionRow);
+        await supabase.from("subscriptions").upsert(
+          {
+            user_id: userId,
+            stripe_session_id: session.id,
+            stripe_customer_id: stripeCustomerId,
+            status: "active",
+            plan_code: "premium",
+          },
+          { onConflict: "user_id" }
+        );
 
-        if (subInsertError) {
-          console.error("Supabase subscriptions insert error:", subInsertError);
-          return Response.json({ error: "Не удалось создать подписку" }, { status: 500 });
-        }
-      }
-
-      const { data: usageRow, error: usageSelectError } = await supabase
-        .from("usage_limits")
-        .select("used_count")
-        .eq("user_id", userId)
-        .eq("feature_key", FEATURE_KEY)
-        .maybeSingle();
-
-      if (usageSelectError) {
-        console.error("Supabase usage_limits select error:", usageSelectError);
-        return Response.json({ error: "Не удалось обновить лимиты" }, { status: 500 });
-      }
-
-      if (usageRow) {
-        const { error: usageUpdateError } = await supabase
+        const { data: existingUsage } = await supabase
           .from("usage_limits")
-          .update({ free_limit: PREMIUM_FREE_LIMIT })
+          .select("id, used_count")
           .eq("user_id", userId)
-          .eq("feature_key", FEATURE_KEY);
+          .eq("feature_key", "vet_questions")
+          .maybeSingle();
 
-        if (usageUpdateError) {
-          console.error("Supabase usage_limits update error:", usageUpdateError);
-          return Response.json({ error: "Не удалось обновить лимиты" }, { status: 500 });
-        }
-      } else {
-        const { error: usageInsertError } = await supabase.from("usage_limits").insert({
-          user_id: userId,
-          feature_key: FEATURE_KEY,
-          free_limit: PREMIUM_FREE_LIMIT,
-          used_count: 0,
-        });
-
-        if (usageInsertError) {
-          console.error("Supabase usage_limits insert error:", usageInsertError);
-          return Response.json({ error: "Не удалось создать лимиты" }, { status: 500 });
+        if (existingUsage?.id) {
+          await supabase
+            .from("usage_limits")
+            .update({
+              free_limit: 999999,
+            })
+            .eq("id", existingUsage.id);
+        } else {
+          await supabase.from("usage_limits").insert({
+            user_id: userId,
+            feature_key: "vet_questions",
+            free_limit: 999999,
+            used_count: 0,
+          });
         }
       }
     }
-  }
 
-  return Response.json({ received: true }, { status: 200 });
+    return NextResponse.json({ received: true });
+  } catch {
+    return NextResponse.json(
+      { error: "Не удалось обработать Stripe webhook" },
+      { status: 500 }
+    );
+  }
 }
