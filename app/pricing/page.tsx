@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PricingCheckoutButton } from "@/components/PricingCheckoutButton";
 
 const plans = [
   {
@@ -57,17 +58,7 @@ export default function PricingPage() {
                   </li>
                 ))}
               </ul>
-              {plan.showCta ? (
-                <div className="mt-6">
-                  <button
-                    type="button"
-                    disabled
-                    className="inline-flex w-full cursor-not-allowed items-center justify-center rounded-full border border-zinc-200 bg-zinc-100 px-6 py-3 text-center text-sm font-medium text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-500"
-                  >
-                    Подключение скоро
-                  </button>
-                </div>
-              ) : null}
+              {plan.showCta ? <PricingCheckoutButton /> : null}
             </article>
           ))}
         </div>

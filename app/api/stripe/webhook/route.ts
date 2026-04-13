@@ -1,6 +1,6 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 function requireEnv(
   name: "STRIPE_SECRET_KEY" | "STRIPE_WEBHOOK_SECRET"
@@ -46,8 +46,7 @@ export async function POST(request: Request) {
         session.metadata?.user_id ?? session.client_reference_id ?? null;
 
       if (userId) {
-        const supabase = await createClient();
-
+        const supabase = createAdminClient();
         const stripeCustomerId =
           typeof session.customer === "string" ? session.customer : null;
 
