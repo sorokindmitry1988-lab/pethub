@@ -5,18 +5,18 @@ import { FormEvent, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
-  const captchaRef = useRef<InstanceType<typeof HCaptcha>>(null);
+  const hcaptchaRef = useRef<HCaptcha>(null);
   const [email, setEmail] = useState("");
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
-  const siteKey = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY;
+  const siteKey = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY?.trim() ?? "";
 
   function resetCaptcha() {
     setCaptchaToken(null);
-    captchaRef.current?.resetCaptcha();
+    hcaptchaRef.current?.resetCaptcha();
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -98,7 +98,7 @@ export default function LoginPage() {
           {siteKey ? (
             <div className="flex justify-center">
               <HCaptcha
-                ref={captchaRef}
+                ref={hcaptchaRef}
                 sitekey={siteKey}
                 onVerify={(token) => setCaptchaToken(token)}
                 onExpire={() => setCaptchaToken(null)}
