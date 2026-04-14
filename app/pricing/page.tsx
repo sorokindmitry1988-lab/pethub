@@ -1,5 +1,7 @@
+"use client";
+
 import Link from "next/link";
-import { PricingCheckoutButton } from "@/components/PricingCheckoutButton";
+import { useState } from "react";
 
 const plans = [
   {
@@ -19,6 +21,33 @@ const plans = [
 ] as const;
 
 export default function PricingPage() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleClick() {
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/stripe/checkout", {
+        method: "POST",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.url) {
+        setError(data.error ?? "Не удалось перейти к оплате.");
+        return;
+      }
+
+      window.location.href = data.url;
+    } catch {
+      setError("Не удалось перейти к оплате.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="min-h-dvh bg-zinc-50 font-sans dark:bg-black">
       <div className="mx-auto w-full max-w-lg px-4 py-8 sm:max-w-2xl sm:px-6 sm:py-10 md:max-w-4xl md:py-12">
@@ -47,6 +76,7 @@ export default function PricingPage() {
               <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 sm:text-xl">
                 {plan.title}
               </h2>
+
               <ul className="mt-4 flex flex-1 flex-col gap-3 text-sm text-zinc-600 dark:text-zinc-400 sm:text-base">
                 {plan.items.map((item) => (
                   <li key={item} className="flex gap-2">
@@ -58,7 +88,25 @@ export default function PricingPage() {
                   </li>
                 ))}
               </ul>
-              {plan.showCta ? <PricingCheckoutButton /> : null}
+
+              {plan.showCta ? (
+                <div className="mt-6">
+                  <button
+                    type="button"
+                    onClick={handleClick}
+                    disabled={loading}
+                    className="inline-flex w-full items-center justify-center rounded-full bg-zinc-900 px-6 py-3 text-center text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+                  >
+                    {loading ? "Переход к оплате..." : "Оплатить 99 ₽"}
+                  </button>
+
+                  {error ? (
+                    <p className="mt-3 text-sm text-red-600 dark:text-red-400">
+                      {error}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
             </article>
           ))}
         </div>
