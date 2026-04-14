@@ -1,22 +1,22 @@
 "use client";
 
-import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
+import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { FormEvent, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
-  const turnstileRef = useRef<TurnstileInstance>(null);
+  const captchaRef = useRef<InstanceType<typeof HCaptcha>>(null);
   const [email, setEmail] = useState("");
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
-  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+  const siteKey = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY;
 
   function resetCaptcha() {
     setCaptchaToken(null);
-    turnstileRef.current?.reset();
+    captchaRef.current?.resetCaptcha();
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -97,20 +97,12 @@ export default function LoginPage() {
 
           {siteKey ? (
             <div className="flex justify-center">
-              <Turnstile
-                ref={turnstileRef}
-                siteKey={siteKey}
-                onSuccess={(token) => setCaptchaToken(token)}
-                onExpire={() => {
-                  setCaptchaToken(null);
-                }}
-                onError={() => {
-                  setCaptchaToken(null);
-                }}
-                onTimeout={() => {
-                  setCaptchaToken(null);
-                }}
-                options={{ theme: "auto" }}
+              <HCaptcha
+                ref={captchaRef}
+                sitekey={siteKey}
+                onVerify={(token) => setCaptchaToken(token)}
+                onExpire={() => setCaptchaToken(null)}
+                onError={() => setCaptchaToken(null)}
               />
             </div>
           ) : null}

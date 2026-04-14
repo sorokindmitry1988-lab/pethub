@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@hcaptcha/react-hcaptcha": "^2.0.2",
-    "@marsidev/react-turnstile": "^1.5.0",
     "@supabase/ssr": "^0.10.0",
     "@supabase/supabase-js": "^2.100.1",
     "next": "16.2.1",
